@@ -13,6 +13,7 @@ import {
   untrackPendingEscalation,
   collectPendingEscalationIds,
 } from "../src/escalation-state.js";
+import { resetLegacyDefaultRefusal } from "../src/legacy-scope.js";
 
 // ---------------------------------------------------------------------------
 // Scope-aware state mock
@@ -433,6 +434,7 @@ describe("company-aware state scoping", () => {
     let ctx: ReturnType<typeof makeScopedCtx>;
 
     beforeEach(() => {
+      resetLegacyDefaultRefusal();
       ctx = makeScopedCtx();
       const allowed = ctx.state.get.getMockImplementation()!;
       ctx.state.get.mockImplementation((key: { scopeId: string; stateKey: string }) => {
@@ -467,6 +469,13 @@ describe("company-aware state scoping", () => {
 
     it("getThreadSessions returns no sessions for a thread without company data", async () => {
       await expect(getThreadSessions(ctx as any, "thread-x", "comp-1")).resolves.toEqual([]);
+    });
+
+    it("asks the host for the legacy scope only once after a refusal", async () => {
+      await collectPendingEscalationIds(ctx as any, "comp-1");
+      await collectPendingEscalationIds(ctx as any, "comp-1");
+      const defaultReads = ctx.state.get.mock.calls.filter(([key]: [{ scopeId: string }]) => key.scopeId === "default");
+      expect(defaultReads).toHaveLength(1);
     });
 
     it("getThreadSessions still propagates the refusal without a company", async () => {
