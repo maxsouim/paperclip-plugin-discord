@@ -478,6 +478,14 @@ describe("company-aware state scoping", () => {
       expect(defaultReads).toHaveLength(1);
     });
 
+    it("propagates a legacy read failure that is not a refusal", async () => {
+      ctx.state.get.mockImplementation((key: { scopeId: string; stateKey: string }) =>
+        key.scopeId === "default"
+          ? Promise.reject(new Error("worker RPC timed out"))
+          : Promise.resolve(stateStore.get(scopedKey(key.scopeId, key.stateKey)) ?? null));
+      await expect(getThreadSessions(ctx as any, "thread-x", "comp-1")).rejects.toThrow(/timed out/);
+    });
+
     it("getThreadSessions still propagates the refusal without a company", async () => {
       await expect(getThreadSessions(ctx as any, "thread-x")).rejects.toThrow(/not allowed/);
     });

@@ -15,8 +15,8 @@ export function resetLegacyDefaultRefusal(): void {
  * When a real company was already checked, this is only a fallback. Newer
  * Paperclip hosts refuse state access for a scope that is not a real company,
  * so a refused fallback read means there is no legacy data to return, and
- * later fallback reads are skipped. Without a company, "default" is the
- * primary scope and errors propagate.
+ * later fallback reads are skipped. Other errors propagate, as they do when
+ * there is no company and "default" is the primary scope.
  */
 export async function readLegacyDefault(
   ctx: PluginContext,
@@ -31,7 +31,10 @@ export async function readLegacyDefault(
   } catch (error) {
     if (error instanceof Error && /is not allowed to perform/.test(error.message)) {
       fallbackRefused = true;
+      return null;
     }
-    return null;
+    // Any other failure may hide real legacy data, so callers must not treat
+    // it as an empty result.
+    throw error;
   }
 }
